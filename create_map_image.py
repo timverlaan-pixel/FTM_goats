@@ -78,7 +78,11 @@ ax.set_facecolor(C['offwhite'])
 # Convert to Web Mercator for contextily
 gdf_polygons_mercator = gdf_polygons.to_crs(epsg=3857)
 
-# Plot polygons
+# Convert goat farm to mercator for circle calculation
+goat_gdf_temp = gpd.GeoDataFrame([{'geometry': GOAT_FARM}], crs='EPSG:4326').to_crs(epsg=3857)
+circle_geometry = goat_gdf_temp.geometry.iloc[0].buffer(1000)
+
+# Plot polygons and calculate intersections
 for idx, row in gdf_polygons_mercator.iterrows():
     ax.add_patch(mpatches.Polygon(
         list(row['geometry'].exterior.coords),
@@ -88,6 +92,23 @@ for idx, row in gdf_polygons_mercator.iterrows():
         linewidth=3,
         zorder=3
     ))
+
+    # Calculate intersection with 1km circle
+    intersection = row['geometry'].intersection(circle_geometry)
+    if not intersection.is_empty and intersection.area > 0:
+        # Calculate percentage
+        percentage = (intersection.area / row['geometry'].area) * 100
+
+        # Get centroid of intersection for label placement
+        centroid = intersection.centroid
+
+        # Add percentage label
+        ax.text(centroid.x, centroid.y, f'{percentage:.0f}%',
+                fontsize=18, fontweight='bold', color=row['color'],
+                ha='center', va='center',
+                bbox=dict(facecolor='white', edgecolor=row['color'],
+                         alpha=0.9, boxstyle='round,pad=0.5', linewidth=2),
+                zorder=6)
 
 # Convert points to Web Mercator
 goat_gdf = gpd.GeoDataFrame([{'geometry': GOAT_FARM}], crs='EPSG:4326').to_crs(epsg=3857)
@@ -141,18 +162,20 @@ legend_elements = [
     mpatches.Patch(facecolor=C['blauw'], edgecolor=C['blauw'], alpha=0.4, label='Reeds gebouwd (400)'),
     mpatches.Patch(facecolor=C['roze'], edgecolor=C['roze'], alpha=0.4, label='Wordt nu gebouwd (800)'),
     mpatches.Patch(facecolor=C['geel'], edgecolor=C['geel'], alpha=0.4, label='Nog te bouwen (1.640)'),
-    plt.Line2D([0], [0], color=C['rood'], linewidth=2, linestyle='--', label='1 km risicozone'),
+    plt.Line2D([0], [0], color=C['rood'], linewidth=2.5, linestyle='--', label='1 km risicozone'),
     plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=C['rood'],
-               markersize=10, label='Geitenhouderij', markeredgecolor='white', markeredgewidth=1),
+               markersize=12, label='Geitenhouderij', markeredgecolor='white', markeredgewidth=2),
     plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=C['dollargroen'],
-               markersize=10, label='Overige veehouderij', markeredgecolor='white', markeredgewidth=1)
+               markersize=12, label='Overige veehouderij', markeredgecolor='white', markeredgewidth=2)
 ]
 
-legend = ax.legend(handles=legend_elements, loc='lower left', frameon=True,
-                  fancybox=False, shadow=True, fontsize=10,
-                  title='LEGENDA', title_fontsize=11)
+legend = ax.legend(handles=legend_elements, loc='upper right', frameon=True,
+                  fancybox=False, shadow=True, fontsize=13,
+                  title='LEGENDA', title_fontsize=15, labelspacing=1.0,
+                  borderpad=1.2, handlelength=2.5, handleheight=1.5)
 legend.get_frame().set_facecolor('white')
 legend.get_frame().set_edgecolor('none')
+legend.get_frame().set_alpha(0.95)
 
 plt.tight_layout()
 
