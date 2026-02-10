@@ -131,12 +131,35 @@ circle_geometry = goat_point.buffer(1000)
 
 
 # ============================================================
-# CREATE FIGURE
+# COMPUTE FIGURE SIZE from data aspect ratio
 # ============================================================
-fig = plt.figure(figsize=(14, 14), facecolor=C['offwhite'])
+bounds = gdf_polygons_mercator.total_bounds
+margin = 500
+x_min, x_max = bounds[0] - margin, bounds[2] + margin
+y_min, y_max = bounds[1] - margin, bounds[3] + margin
 
-# Map axes — tight against header
-ax = fig.add_axes([0.0, 0.005, 1.0, 0.865])
+data_w = x_max - x_min
+data_h = y_max - y_min
+map_aspect = data_w / data_h   # width / height in meters
+
+fig_w = 14.0                   # inches
+# Compute header height from actual text content (in points → inches)
+_logo = 11 + 5           # logo + gap
+_title = 36 + 8          # title + gap
+_subtitle = 3 * 12 * 1.3 # 3 lines at 12pt, 1.3 linespacing
+_pad = 4 + 2             # top + bottom pad
+header_inches = (_pad + _logo + _title + _subtitle) / 72 - (1 / 2.54) - (0.25 / 2.54)  # cut 1.25cm from top
+source_inches = 0.25           # source line
+map_inches = fig_w / map_aspect
+fig_h = header_inches + map_inches + source_inches
+
+# Fractions for axes positioning
+header_frac = header_inches / fig_h
+source_frac = source_inches / fig_h
+map_frac = map_inches / fig_h
+
+fig = plt.figure(figsize=(fig_w, fig_h), facecolor=C['offwhite'])
+ax = fig.add_axes([0.0, source_frac, 1.0, map_frac])
 ax.set_facecolor(C['offwhite'])
 
 
@@ -188,11 +211,9 @@ koeien_gdf.plot(ax=ax, color=C['dollargroen'], markersize=140, zorder=5,
 cx.add_basemap(ax, crs=gdf_polygons_mercator.crs,
                source=cx.providers.CartoDB.PositronNoLabels, zoom=14)
 
-# Bounds
-bounds = gdf_polygons_mercator.total_bounds
-margin = 500
-ax.set_xlim(bounds[0] - margin, bounds[2] + margin)
-ax.set_ylim(bounds[1] - margin, bounds[3] + margin)
+# Set bounds to exact data extent
+ax.set_xlim(x_min, x_max)
+ax.set_ylim(y_min, y_max)
 
 # Remove axes
 ax.set_xticks([])
@@ -202,92 +223,101 @@ for spine in ax.spines.values():
 
 
 # ============================================================
-# HEADER
+# HEADER — chained positions, top-down
 # ============================================================
+map_top = source_frac + map_frac
+
+# Convert point sizes to figure fractions for spacing
+def pts(pt):
+    return (pt / 72) / fig_h
+
+# Shift header + legend down by 2 cm
+shift = (1.50 / 2.54) / fig_h  # 1.50 cm → figure fraction
+y = 1.0 - pts(4) - shift
+
 # Logo — GT America Mono Medium, ALL CAPS
-fig.text(0.04, 0.975, 'FOLLOW THE MONEY',
+fig.text(0.04, y, 'FOLLOW THE MONEY',
          fontsize=11, fontweight='bold', fontfamily=FONT_MONO,
          color=C['zilver'], ha='left', va='top',
          transform=fig.transFigure)
+y -= pts(16)
 
 # Title — Pilat Condensed
-fig.text(0.04, 0.950, 'Woningen en geiten in Deventer',
+fig.text(0.04, y, 'Nieuwbouw rondom geitenboerderij',
          fontsize=36, fontweight='bold', fontfamily=FONT_TITLE,
          color=C['zwart'], ha='left', va='top',
          transform=fig.transFigure)
+y -= pts(44)
 
 # Subtitle — GT America Regular
-fig.text(0.04, 0.915,
+fig.text(0.04, y,
          'Binnen 1 kilometer van deze geitenhouderij zijn al 400 woningen\n'
          'gebouwd. Als drie andere bouwplannen doorgaan, komen daar nog\n'
          '2.440 woningen bij.',
-         fontsize=13, fontfamily=FONT_UI,
+         fontsize=12, fontfamily=FONT_UI,
          color=C['dollargroen'], ha='left', va='top',
-         transform=fig.transFigure, linespacing=1.5)
+         transform=fig.transFigure, linespacing=1.3)
 
 
 # ============================================================
-# LEGEND — top-right, no frame, editorial style
+# LEGEND — 2 columns × 3 rows, top-right, no frame
 # ============================================================
-leg_x = 0.73
-leg_y = 0.965
-leg_step = 0.024
 sw_w = 0.016
 sw_h = 0.010
+leg_step = pts(22)
 
-# Category swatches
-categories = [
-    (C['blauw'],       'Reeds gebouwd (400)'),
-    (C['paars'],       'Wordt nu gebouwd (800)'),
-    (C['lichtoranje'], 'Nog te bouwen (1.640)'),
+# Column 1: polygon categories (left col)
+col1_x = 0.55
+col1_items = [
+    ('swatch', C['blauw'],       'Reeds gebouwd (400)'),
+    ('swatch', C['paars'],       'Wordt nu gebouwd (800)'),
+    ('swatch', C['lichtoranje'], 'Nog te bouwen (1.640)'),
 ]
 
-for i, (color, label) in enumerate(categories):
-    y = leg_y - i * leg_step
-    rect = mpatches.FancyBboxPatch(
-        (leg_x, y - sw_h / 2), sw_w, sw_h,
-        boxstyle="square,pad=0",
-        facecolor=color, edgecolor='none', alpha=0.6,
-        transform=fig.transFigure, figure=fig, zorder=10
-    )
-    fig.patches.append(rect)
-    fig.text(leg_x + sw_w + 0.008, y, label,
-             fontsize=12, fontfamily=FONT_UI, color=C['zwart'],
-             va='center', transform=fig.transFigure)
-
-# Dashed line — risk zone
-y_d = leg_y - len(categories) * leg_step
-fig.lines.append(Line2D(
-    [leg_x + 0.001, leg_x + sw_w - 0.001], [y_d, y_d],
-    color=C['rood'], linewidth=2, linestyle='--',
-    dashes=(4, 3), transform=fig.transFigure, figure=fig
-))
-fig.text(leg_x + sw_w + 0.008, y_d, '1 km risicozone',
-         fontsize=12, fontfamily=FONT_UI, color=C['zwart'],
-         va='center', transform=fig.transFigure)
-
-# Circle markers
-markers = [
-    (C['rood'],        'Geitenhouderij'),
-    (C['dollargroen'], 'Overige veehouderij'),
+# Column 2: markers (right col)
+col2_x = 0.80
+col2_items = [
+    ('dash',   C['rood'],        '1 km risicozone'),
+    ('circle', C['rood'],        'Geitenhouderij'),
+    ('circle', C['dollargroen'], 'Overige veehouderij'),
 ]
 
-for i, (color, label) in enumerate(markers):
-    y = y_d - (i + 1) * leg_step
-    fig.patches.append(mpatches.Circle(
-        (leg_x + sw_w / 2, y), radius=0.005,
-        facecolor=color, edgecolor='white', linewidth=1.5,
-        transform=fig.transFigure, figure=fig, zorder=10
-    ))
-    fig.text(leg_x + sw_w + 0.008, y, label,
-             fontsize=12, fontfamily=FONT_UI, color=C['zwart'],
-             va='center', transform=fig.transFigure)
+# Top of legend aligns with title
+leg_y = 1.0 - pts(4) - shift - pts(16)  # same as title top
+
+for col_x, items in [(col1_x, col1_items), (col2_x, col2_items)]:
+    for i, (kind, color, label) in enumerate(items):
+        yi = leg_y - i * leg_step
+
+        if kind == 'swatch':
+            fig.patches.append(mpatches.FancyBboxPatch(
+                (col_x, yi - sw_h / 2), sw_w, sw_h,
+                boxstyle="square,pad=0",
+                facecolor=color, edgecolor='none', alpha=0.6,
+                transform=fig.transFigure, figure=fig, zorder=10
+            ))
+        elif kind == 'dash':
+            fig.lines.append(Line2D(
+                [col_x + 0.001, col_x + sw_w - 0.001], [yi, yi],
+                color=color, linewidth=2, linestyle='--',
+                dashes=(4, 3), transform=fig.transFigure, figure=fig
+            ))
+        elif kind == 'circle':
+            fig.patches.append(mpatches.Circle(
+                (col_x + sw_w / 2, yi), radius=0.005,
+                facecolor=color, edgecolor='white', linewidth=1.5,
+                transform=fig.transFigure, figure=fig, zorder=10
+            ))
+
+        fig.text(col_x + sw_w + 0.008, yi, label,
+                 fontsize=11, fontfamily=FONT_UI, color=C['zwart'],
+                 va='center', transform=fig.transFigure)
 
 
 # ============================================================
 # SOURCE — GT America Mono Medium, ALL CAPS
 # ============================================================
-fig.text(0.04, 0.003, 'BRON: FTM / OMROEP GELDERLAND / NRC',
+fig.text(0.04, 0.01, 'BRON: FTM / OMROEP GELDERLAND / NRC',
          fontsize=9, fontfamily=FONT_MONO, fontweight='bold',
          color=C['zilver'], ha='left', va='bottom',
          transform=fig.transFigure)
@@ -297,7 +327,6 @@ fig.text(0.04, 0.003, 'BRON: FTM / OMROEP GELDERLAND / NRC',
 # SAVE
 # ============================================================
 output_path = 'map_visualization.png'
-plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.05,
-            facecolor=C['offwhite'])
+plt.savefig(output_path, dpi=300, facecolor=C['offwhite'])
 print(f"Map saved to: {output_path}")
 plt.close()
