@@ -133,10 +133,10 @@ circle_geometry = goat_point.buffer(1000)
 # ============================================================
 # CREATE FIGURE
 # ============================================================
-fig = plt.figure(figsize=(14, 16), facecolor=C['offwhite'])
+fig = plt.figure(figsize=(14, 14), facecolor=C['offwhite'])
 
-# Map axes — positioned for editorial layout
-ax = fig.add_axes([0.0, 0.04, 1.0, 0.72])
+# Map axes — tight against header
+ax = fig.add_axes([0.0, 0.005, 1.0, 0.865])
 ax.set_facecolor(C['offwhite'])
 
 
@@ -161,7 +161,7 @@ for idx, row in gdf_polygons_mercator.iterrows():
         percentage = (intersection.area / row['geometry'].area) * 100
         centroid = intersection.centroid
         ax.text(centroid.x, centroid.y, f'{percentage:.0f}%',
-                fontsize=14, fontweight='bold', color=C['zwart'],
+                fontsize=18, fontweight='bold', color=C['zwart'],
                 fontfamily=FONT_UI,
                 ha='center', va='center',
                 bbox=dict(facecolor='white', edgecolor='none',
@@ -184,9 +184,9 @@ varkens_gdf.plot(ax=ax, color=C['dollargroen'], markersize=140, zorder=5,
 koeien_gdf.plot(ax=ax, color=C['dollargroen'], markersize=140, zorder=5,
                 edgecolor='white', linewidth=2, marker='o')
 
-# Basemap
+# Basemap — no labels for clean editorial look
 cx.add_basemap(ax, crs=gdf_polygons_mercator.crs,
-               source=cx.providers.CartoDB.Positron, zoom=14)
+               source=cx.providers.CartoDB.PositronNoLabels, zoom=14)
 
 # Bounds
 bounds = gdf_polygons_mercator.total_bounds
@@ -206,34 +206,34 @@ for spine in ax.spines.values():
 # ============================================================
 # Logo — GT America Mono Medium, ALL CAPS
 fig.text(0.04, 0.975, 'FOLLOW THE MONEY',
-         fontsize=9, fontweight='bold', fontfamily=FONT_MONO,
+         fontsize=11, fontweight='bold', fontfamily=FONT_MONO,
          color=C['zilver'], ha='left', va='top',
          transform=fig.transFigure)
 
 # Title — Pilat Condensed
-fig.text(0.04, 0.955, 'Woningen en geiten in Deventer',
-         fontsize=30, fontweight='bold', fontfamily=FONT_TITLE,
+fig.text(0.04, 0.950, 'Woningen en geiten in Deventer',
+         fontsize=36, fontweight='bold', fontfamily=FONT_TITLE,
          color=C['zwart'], ha='left', va='top',
          transform=fig.transFigure)
 
 # Subtitle — GT America Regular
-fig.text(0.04, 0.925,
+fig.text(0.04, 0.915,
          'Binnen 1 kilometer van deze geitenhouderij zijn al 400 woningen\n'
          'gebouwd. Als drie andere bouwplannen doorgaan, komen daar nog\n'
          '2.440 woningen bij.',
-         fontsize=10.5, fontfamily=FONT_UI,
+         fontsize=13, fontfamily=FONT_UI,
          color=C['dollargroen'], ha='left', va='top',
-         transform=fig.transFigure, linespacing=1.6)
+         transform=fig.transFigure, linespacing=1.5)
 
 
 # ============================================================
-# LEGEND — no frame, clean editorial style
+# LEGEND — top-right, no frame, editorial style
 # ============================================================
-leg_x = 0.04
-leg_y = 0.865
-leg_step = 0.020
-sw_w = 0.014
-sw_h = 0.008
+leg_x = 0.73
+leg_y = 0.965
+leg_step = 0.024
+sw_w = 0.016
+sw_h = 0.010
 
 # Category swatches
 categories = [
@@ -251,19 +251,19 @@ for i, (color, label) in enumerate(categories):
         transform=fig.transFigure, figure=fig, zorder=10
     )
     fig.patches.append(rect)
-    fig.text(leg_x + sw_w + 0.007, y, label,
-             fontsize=9.5, fontfamily=FONT_UI, color=C['zwart'],
+    fig.text(leg_x + sw_w + 0.008, y, label,
+             fontsize=12, fontfamily=FONT_UI, color=C['zwart'],
              va='center', transform=fig.transFigure)
 
 # Dashed line — risk zone
 y_d = leg_y - len(categories) * leg_step
 fig.lines.append(Line2D(
     [leg_x + 0.001, leg_x + sw_w - 0.001], [y_d, y_d],
-    color=C['rood'], linewidth=1.8, linestyle='--',
+    color=C['rood'], linewidth=2, linestyle='--',
     dashes=(4, 3), transform=fig.transFigure, figure=fig
 ))
-fig.text(leg_x + sw_w + 0.007, y_d, '1 km risicozone',
-         fontsize=9.5, fontfamily=FONT_UI, color=C['zwart'],
+fig.text(leg_x + sw_w + 0.008, y_d, '1 km risicozone',
+         fontsize=12, fontfamily=FONT_UI, color=C['zwart'],
          va='center', transform=fig.transFigure)
 
 # Circle markers
@@ -275,20 +275,20 @@ markers = [
 for i, (color, label) in enumerate(markers):
     y = y_d - (i + 1) * leg_step
     fig.patches.append(mpatches.Circle(
-        (leg_x + sw_w / 2, y), radius=0.004,
-        facecolor=color, edgecolor='white', linewidth=1.2,
+        (leg_x + sw_w / 2, y), radius=0.005,
+        facecolor=color, edgecolor='white', linewidth=1.5,
         transform=fig.transFigure, figure=fig, zorder=10
     ))
-    fig.text(leg_x + sw_w + 0.007, y, label,
-             fontsize=9.5, fontfamily=FONT_UI, color=C['zwart'],
+    fig.text(leg_x + sw_w + 0.008, y, label,
+             fontsize=12, fontfamily=FONT_UI, color=C['zwart'],
              va='center', transform=fig.transFigure)
 
 
 # ============================================================
 # SOURCE — GT America Mono Medium, ALL CAPS
 # ============================================================
-fig.text(0.04, 0.018, 'BRON: FTM / OMROEP GELDERLAND / NRC',
-         fontsize=7.5, fontfamily=FONT_MONO, fontweight='bold',
+fig.text(0.04, 0.003, 'BRON: FTM / OMROEP GELDERLAND / NRC',
+         fontsize=9, fontfamily=FONT_MONO, fontweight='bold',
          color=C['zilver'], ha='left', va='bottom',
          transform=fig.transFigure)
 
@@ -297,6 +297,7 @@ fig.text(0.04, 0.018, 'BRON: FTM / OMROEP GELDERLAND / NRC',
 # SAVE
 # ============================================================
 output_path = 'map_visualization.png'
-plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor=C['offwhite'])
+plt.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.05,
+            facecolor=C['offwhite'])
 print(f"Map saved to: {output_path}")
 plt.close()
